@@ -1,23 +1,53 @@
 <?php
-class Client {
+class Client
+{
     private $pdo;
 
-    public function __construct($pdo) {
+    public function __construct($pdo)
+    {
         $this->pdo = $pdo;
     }
 
-    public function calculateScore($client) {
-        $openRate = $client['open_rate'];
-        $unsubRate = $client['unsubscription_rate'];
+    function calculateScore($client)
+    {
         $bounceRate = $client['bounce_rate'];
+        $deliveredRate = 100 - $bounceRate;
+        $openRate = $client['open_rate'];
+        $restRate = 100 - $openRate;
+        $unsubscriptionRate = $client['unsubscription_rate'];
         $complaintRate = $client['complaint_rate'];
-        
-        // Formule pour calculer le score
-        $score = 10;
-        return max($score, 0);
+
+        $openWithoutActionsRate = $openRate - (($openRate / 100 * $unsubscriptionRate / 100) * 100) - (($openRate / 100 * $complaintRate / 100) * 100);
+        $restWithoutActionsRate = $restRate - (($restRate / 100 * $unsubscriptionRate / 100) * 100) - (($restRate / 100 * $complaintRate / 100) * 100);
+
+        $openWithoutActionsRate_total = ($openWithoutActionsRate * $deliveredRate) / 100;
+        $restWithoutActionsRate_total = ($restWithoutActionsRate * $deliveredRate) / 100;
+        $unsubscriptionRate_total = ($unsubscriptionRate * $deliveredRate) / 100;
+        $complaintRate_total = ($complaintRate * $deliveredRate) / 100;
+
+
+
+        // Définir les poids
+        $weight_openWithoutActionsRate = 0.40;
+        $weight_restWithoutActionsRate = 0.10;
+        $weight_unsubscriptionRate = 0.20;
+        $weight_complaintRate = 0.10;
+        $weight_bounceRate = 0.20;
+
+        // Calculer le score normalisé
+        $score = ($openWithoutActionsRate_total * $weight_openWithoutActionsRate) +
+            ($restWithoutActionsRate_total * $weight_restWithoutActionsRate) +
+            ((100 - $unsubscriptionRate_total) * $weight_unsubscriptionRate) +
+            ((100 - $complaintRate_total) * $weight_complaintRate) +
+            ((100 - $bounceRate) * $weight_bounceRate);
+
+        $scoreNormalized = max(min($score, 100), 0);
+
+        return $scoreNormalized;
     }
 
-    public function categorizeGroups() {
+    public function categorizeGroups()
+    {
         // Récupérer tous les clients
         $stmt = $this->pdo->query("SELECT * FROM clients ORDER BY score DESC");
         $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -44,7 +74,3 @@ class Client {
         }
     }
 }
-
-
-
-

@@ -3,9 +3,9 @@ include 'db_connection.php';
 
 $client_id = isset($_GET['client_id']) ? $_GET['client_id'] : null;
 $group = isset($_GET['group']) ? (int)$_GET['group'] : null;
-
 $sort = isset($_GET['sort']) ? $_GET['sort'] : 'desc'; // Par défaut, tri décroissant (meilleur score d'abord)
 $order = ($sort === 'asc') ? 'ASC' : 'DESC';
+$best_clients = isset($_GET['best_clients']);
 
 // Pagination
 $results_per_page = 30;
@@ -29,8 +29,25 @@ switch ($group) {
         break;
 }
 
-if ($client_id) {
-    // Recherche par ID de client avec filtrage par groupe
+if ($best_clients) {
+    // Recherche des meilleurs clients pour chaque groupe
+    $best_clients_query = "
+        SELECT * FROM clients c
+        INNER JOIN (
+            SELECT groupe, MAX(score) as max_score
+            FROM clients
+            GROUP BY groupe
+        ) m
+        ON c.groupe = m.groupe AND c.score = m.max_score
+        ORDER BY c.groupe
+    ";
+    $stmt = $pdo->prepare($best_clients_query);
+    $stmt->execute();
+    $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $total_clients = count($clients);
+    $total_pages = 1; 
+} elseif ($client_id) {
+    // Recherche par ID de client
     $stmt = $pdo->prepare("SELECT * FROM $view WHERE client_id = :client_id ORDER BY score $order LIMIT :start_from, :results_per_page");
     $stmt->bindValue(':client_id', $client_id, PDO::PARAM_INT);
     $stmt->bindValue(':start_from', $start_from, PDO::PARAM_INT);
@@ -38,7 +55,7 @@ if ($client_id) {
     $stmt->execute();
     $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $total_clients = count($clients);
-    $total_pages = 1; // Un seul client sera affiché
+    $total_pages = 1;
 } else {
     // Filtrage par groupe et tri par score
     $stmt = $pdo->prepare("SELECT * FROM $view ORDER BY score $order LIMIT :start_from, :results_per_page");
@@ -47,7 +64,7 @@ if ($client_id) {
     $stmt->execute();
     $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Obtenir le nombre total de clients pour les liens de pagination
+    // Obtenir le nombre total de clients pour la pagination
     $total_stmt = $pdo->prepare("SELECT COUNT(*) FROM $view");
     $total_stmt->execute();
     $total_clients = $total_stmt->fetchColumn();
@@ -75,13 +92,15 @@ if ($client_id) {
             <option value="2" <?php echo ($group == 2) ? 'selected' : ''; ?>>Group 2</option>
             <option value="3" <?php echo ($group == 3) ? 'selected' : ''; ?>>Group 3</option>
         </select>
+        <label for="sort">Sort by:</label>
+        <select id="sort" name="sort">
+            <option value="desc" <?php echo ($sort == 'desc') ? 'selected' : ''; ?>>Best Score</option>
+            <option value="asc" <?php echo ($sort == 'asc') ? 'selected' : ''; ?>>Worst Score</option>
+        </select>
         <input type="submit" value="Search">
+        <input type="submit" name="best_clients" value="Ideal profiles">
     </form>
-    <div>
-        <a href="index.php?sort=asc&group=<?php echo htmlspecialchars($group); ?>&client_id=<?php echo htmlspecialchars($client_id); ?>">Sort by Worst Score</a> |
-        <a href="index.php?sort=desc&group=<?php echo htmlspecialchars($group); ?>&client_id=<?php echo htmlspecialchars($client_id); ?>">Sort by Best Score</a>
-    </div>
-    <table>
+    <table border="1">
         <thead>
             <tr>
                 <th>ID</th>
