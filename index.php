@@ -1,73 +1,37 @@
 <?php
 include 'db_connection.php';
+include 'ClientRepository.php';
+include 'ClientService.php';
 
-$client_id = isset($_GET['client_id']) ? $_GET['client_id'] : null;
+$clientRepository = new ClientRepository($pdo);
+$clientService = new ClientService($clientRepository);
+
+$client_id = isset($_GET['client_id']) ? (int)$_GET['client_id'] : null;
 $group = isset($_GET['group']) ? (int)$_GET['group'] : null;
-$sort = isset($_GET['sort']) ? $_GET['sort'] : 'desc'; // Par défaut, tri décroissant (meilleur score d'abord)
-$order = ($sort === 'asc') ? 'ASC' : 'DESC';
+$sort = isset($_GET['sort']) ? $_GET['sort'] : 'desc';
 $best_clients = isset($_GET['best_clients']);
-
-// Pagination
-$results_per_page = 30;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$start_from = ($page - 1) * $results_per_page;
+$results_per_page = 30;
 
-// Choix de la vue en fonction du groupe
-$view = null;
-switch ($group) {
-    case 1:
-        $view = "group1_view";
-        break;
-    case 2:
-        $view = "group2_view";
-        break;
-    case 3:
-        $view = "group3_view";
-        break;
-    default:
-        $view = "clients"; // Si aucun groupe n'est sélectionné, on utilise la table principale
-        break;
-}
 
 if ($best_clients) {
-    // Recherche des meilleurs clients pour chaque groupe
-    $best_clients_query = "
-        SELECT * FROM clients c
-        INNER JOIN (
-            SELECT groupe, MAX(score) as max_score
-            FROM clients
-            GROUP BY groupe
-        ) m
-        ON c.groupe = m.groupe AND c.score = m.max_score
-        ORDER BY c.groupe
-    ";
-    $stmt = $pdo->prepare($best_clients_query);
-    $stmt->execute();
-    $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $clients = $clientService->fetchBestClients();
     $total_clients = count($clients);
     $total_pages = 1; 
 } elseif ($client_id) {
-    // Recherche par ID de client
-    $stmt = $pdo->prepare("SELECT * FROM $view WHERE client_id = :client_id ORDER BY score $order LIMIT :start_from, :results_per_page");
-    $stmt->bindValue(':client_id', $client_id, PDO::PARAM_INT);
-    $stmt->bindValue(':start_from', $start_from, PDO::PARAM_INT);
-    $stmt->bindValue(':results_per_page', $results_per_page, PDO::PARAM_INT);
-    $stmt->execute();
-    $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $view = $clientService->determineView($group);
+    $client = $clientRepository->getClientById($client_id,$view);
+    $clients = $client ? [$client] : [];
     $total_clients = count($clients);
     $total_pages = 1;
 } else {
-    // Filtrage par groupe et tri par score
-    $stmt = $pdo->prepare("SELECT * FROM $view ORDER BY score $order LIMIT :start_from, :results_per_page");
-    $stmt->bindValue(':start_from', $start_from, PDO::PARAM_INT);
-    $stmt->bindValue(':results_per_page', $results_per_page, PDO::PARAM_INT);
-    $stmt->execute();
-    $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Obtenir le nombre total de clients pour la pagination
-    $total_stmt = $pdo->prepare("SELECT COUNT(*) FROM $view");
-    $total_stmt->execute();
-    $total_clients = $total_stmt->fetchColumn();
+    $filters = [
+        'sort' => $sort,
+        'page' => $page,
+        'group' => $group
+    ];
+    $clients = $clientService->fetchClients($filters);
+    $total_clients = $clientService->getTotalClients($group);
     $total_pages = ceil($total_clients / $results_per_page);
 }
 ?>
