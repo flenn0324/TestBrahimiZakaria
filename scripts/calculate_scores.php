@@ -4,7 +4,6 @@ require_once __DIR__ . '/../Client.php';
 
 $clientHandler = new Client($pdo);
 
-// Recalculer les scores pour tous les clients
 $stmt = $pdo->query("SELECT * FROM clients");
 $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

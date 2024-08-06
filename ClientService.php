@@ -13,7 +13,6 @@ class ClientService {
         $start = ($page - 1) * 30;
         $group = $filters['group'] ?? null;
 
-        // Déterminer la vue en fonction du groupe
         $view = $this->determineView($group);
 
         return $this->clientRepository->getAllClients($view, $order, $start, 30);
@@ -28,7 +27,7 @@ class ClientService {
             case 3:
                 return "group3_view";
             default:
-                return "clients"; // Vue par défaut
+                return "clients"; 
         }
     }
 

@@ -97,8 +97,6 @@ if ($best_clients) {
         echo "Client ID $client_id not found in Group $group";
     }
     ?>
-
-    <!-- Pagination Links -->
     <div>
         <?php if ($page > 1) : ?>
             <a href="index.php?page=<?php echo $page - 1; ?>&sort=<?php echo htmlspecialchars($sort); ?>&group=<?php echo htmlspecialchars($group); ?>&client_id=<?php echo htmlspecialchars($client_id); ?>">Previous</a>
