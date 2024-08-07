@@ -32,7 +32,7 @@ class ClientRepository {
      * @param int $limit 
      * @return array
      */
-    public function getAllClients(string $view, string $order = 'DESC', int $start = 0, int $limit = 30): array {
+    public function getAllClients(string $view, string $order = 'DESC', int $start = 0, int $limit = 10): array {
         $stmt = $this->pdo->prepare("SELECT * FROM $view ORDER BY score $order LIMIT :start, :limit");
         $stmt->bindValue(':start', $start, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);

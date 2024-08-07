@@ -10,12 +10,12 @@ class ClientService {
     public function fetchClients(array $filters): array {
         $order = $filters['sort'] ?? 'desc';
         $page = $filters['page'] ?? 1;
-        $start = ($page - 1) * 30;
+        $start = ($page - 1) * 10;
         $group = $filters['group'] ?? null;
 
         $view = $this->determineView($group);
 
-        return $this->clientRepository->getAllClients($view, $order, $start, 30);
+        return $this->clientRepository->getAllClients($view, $order, $start, 10);
     }
 
     public function determineView(?int $group): string {
